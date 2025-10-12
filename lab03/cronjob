@@ -1,0 +1,8 @@
+# Cron job definitions for currency exchange rate monitoring
+# Format: minute hour day month day-of-week command
+
+# Daily at 6:00 AM: Get MDL to EUR exchange rate for the previous day
+0 6 * * * cd /app && /usr/local/bin/python3 /app/currency_exchange_rate.py MDL EUR $(date -d "yesterday" +\%Y-\%m-\%d) >> /var/log/cron.log 2>&1
+
+# Weekly on Friday at 5:00 PM (17:00): Get MDL to USD exchange rate for the previous week
+0 17 * * 5 cd /app && /usr/local/bin/python3 /app/currency_exchange_rate.py MDL USD $(date -d "last friday" +\%Y-\%m-\%d) >> /var/log/cron.log 2>&1

@@ -1,0 +1,12 @@
+services:
+  currency-cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: currency-exchange-cron
+    volumes:
+      - ./data:/app/data
+      - ./logs:/var/log
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Chisinau
