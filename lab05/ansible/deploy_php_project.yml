@@ -2,34 +2,55 @@
 - name: Deploy PHP Project
   hosts: test_servers
   become: yes
-
+  
   tasks:
-  - name: Install Git
-    apt:
-      name: git
-      state: present
+    - name: Install Git
+      apt:
+        name: git
+        state: present
 
-  - name: Clone PHP project
-    git:
-      repo: https://github.com/trulyno/php-site-with-unit-tests
-      dest: /tmp/phpproject
-      version: main
-      force: yes
+    - name: Remove old project directory
+      file:
+        path: /tmp/phpproject
+        state: absent
 
-  - name: Copy project files to web directory
-    synchronize:
-      src: /tmp/phpproject/
-      dest: /var/www/html/phpproject/
-    delegate_to: "{{ inventory_hostname }}"
+    - name: Clone PHP project
+      git:
+        repo: https://github.com/trulyno/php-site-with-unit-tests
+        dest: /tmp/phpproject
+        version: main
+        force: yes
 
-  - name: Set correct permissions
-    file:
-      path: /var/www/html/phpproject
-      owner: www-data
-      group: www-data
-      recurse: yes
+    - name: Remove existing web directory content
+      shell: rm -rf /var/www/html/phpproject/*
+      args:
+        warn: false
 
-  - name: Restart Apache
-    systemd:
-      name: apache2
-      state: restarted
+    - name: Copy project files to web directory
+      shell: cp -r /tmp/phpproject/* /var/www/html/phpproject/
+      args:
+        warn: false
+
+    - name: Set correct permissions
+      file:
+        path: /var/www/html/phpproject
+        owner: www-data
+        group: www-data
+        recurse: yes
+
+    - name: Kill any running Apache processes
+      shell: pkill apache2 || true
+      ignore_errors: yes
+
+    - name: Start Apache2
+      shell: source /etc/apache2/envvars && /usr/sbin/apache2 -DFOREGROUND &
+      args:
+        executable: /bin/bash
+      async: 10
+      poll: 0
+
+    - name: Wait for Apache to be ready
+      wait_for:
+        port: 80
+        delay: 2
+        timeout: 10
