@@ -2,79 +2,87 @@
 - name: Configure Test Server
   hosts: test_servers
   become: yes
-
+  
   tasks:
-  - name: Update apt cache
-    apt:
-      update_cache: yes
-      cache_valid_time: 3600
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
 
-  - name: Install Apache2
-    apt:
-      name: apache2
-      state: present
+    - name: Install Apache2
+      apt:
+        name: apache2
+        state: present
 
-  - name: Start and enable Apache2
-    systemd:
-      name: apache2
-      state: started
-      enabled: yes
+    - name: Start Apache2 service
+      service:
+        name: apache2
+        state: started
+      ignore_errors: yes  # Ignore if service can't start via systemd
 
-  - name: Install PHP and extensions
-    apt:
-      name:
-      - php
-      - php-cli
-      - php-common
-      - php-curl
-      - php-mbstring
-      - php-xml
-      - php-zip
-      - libapache2-mod-php
-      state: present
+    - name: Ensure Apache2 is running (manual start)
+      shell: |
+        if ! pgrep -x apache2 > /dev/null; then
+          /usr/sbin/apache2ctl start
+        fi
+      args:
+        executable: /bin/bash
 
-  - name: Create project directory
-    file:
-      path: /var/www/html/phpproject
-      state: directory
-      owner: www-data
-      group: www-data
-      mode: '0755'
+    - name: Install PHP and extensions
+      apt:
+        name:
+          - php
+          - php-cli
+          - php-common
+          - php-curl
+          - php-mbstring
+          - php-xml
+          - php-zip
+          - libapache2-mod-php
+        state: present
 
-  - name: Configure Apache virtual host
-    copy:
-      content: |
-        <VirtualHost *:80>
-            ServerAdmin webmaster@localhost
-            DocumentRoot /var/www/html/phpproject
-            
-            <Directory /var/www/html/phpproject>
-                Options Indexes FollowSymLinks
-                AllowOverride All
-                Require all granted
-            </Directory>
-            
-            ErrorLog ${APACHE_LOG_DIR}/error.log
-            CustomLog ${APACHE_LOG_DIR}/access.log combined
-        </VirtualHost>
-      dest: /etc/apache2/sites-available/phpproject.conf
+    - name: Create project directory
+      file:
+        path: /var/www/html/phpproject
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
 
-  - name: Enable the virtual host
-    command: a2ensite phpproject.conf
-    notify: Restart Apache
+    - name: Configure Apache virtual host
+      copy:
+        content: |
+          <VirtualHost *:80>
+              ServerAdmin webmaster@localhost
+              DocumentRoot /var/www/html/phpproject
+              
+              <Directory /var/www/html/phpproject>
+                  Options Indexes FollowSymLinks
+                  AllowOverride All
+                  Require all granted
+              </Directory>
+              
+              ErrorLog ${APACHE_LOG_DIR}/error.log
+              CustomLog ${APACHE_LOG_DIR}/access.log combined
+          </VirtualHost>
+        dest: /etc/apache2/sites-available/phpproject.conf
 
-  - name: Disable default site
-    command: a2dissite 000-default.conf
-    notify: Restart Apache
+    - name: Enable the virtual host
+      command: a2ensite phpproject.conf
+      args:
+        creates: /etc/apache2/sites-enabled/phpproject.conf
 
-  - name: Enable Apache rewrite module
-    apache2_module:
-      name: rewrite
-      state: present
-    notify: Restart Apache
+    - name: Disable default site
+      command: a2dissite 000-default.conf
+      args:
+        removes: /etc/apache2/sites-enabled/000-default.conf
 
-  handlers:
-  - name: Restart Apache
-    systemd:
-      name: apache2
-      state: restarted
+    - name: Enable Apache rewrite module
+      apache2_module:
+        name: rewrite
+        state: present
+
+    - name: Restart Apache
+      shell: /usr/sbin/apache2ctl restart
+      args:
+        executable: /bin/bash
