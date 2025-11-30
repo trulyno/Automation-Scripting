@@ -19,7 +19,7 @@ services:
       dockerfile: Dockerfile.ssh_agent
     container_name: ssh-agent
     environment:
-      - JENKINS_AGENT_SSH_PUBKEY=ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDexample...
+      - JENKINS_AGENT_SSH_PUBKEY=${JENKINS_AGENT_SSH_PUBKEY}
     networks:
       - jenkins-network
   
