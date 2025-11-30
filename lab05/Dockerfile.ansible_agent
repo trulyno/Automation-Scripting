@@ -1,0 +1,48 @@
+FROM ubuntu:22.04
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    openssh-server \
+    python3 \
+    python3-pip \
+    git \
+    sudo \
+    && apt-get clean
+
+# Install Ansible
+RUN pip3 install ansible
+
+# Configure SSH
+RUN mkdir /var/run/sshd
+RUN echo 'root:password' | chpasswd
+RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# Create jenkins user
+RUN useradd -m -s /bin/bash jenkins && \
+    mkdir -p /home/jenkins/.ssh && \
+    chown -R jenkins:jenkins /home/jenkins/.ssh
+
+# Create SSH directory for Ansible
+RUN mkdir -p /home/jenkins/.ssh
+
+# Add Jenkins public key for authentication
+COPY secrets/jenkins_ansible_agent_key.pub /home/jenkins/.ssh/authorized_keys
+
+# Add private key for connecting to test server
+COPY secrets/ansible_test_server_key /home/jenkins/.ssh/id_rsa
+COPY secrets/ansible_test_server_key.pub /home/jenkins/.ssh/id_rsa.pub
+
+RUN chown -R jenkins:jenkins /home/jenkins/.ssh && \
+    chmod 700 /home/jenkins/.ssh && \
+    chmod 600 /home/jenkins/.ssh/authorized_keys && \
+    chmod 600 /home/jenkins/.ssh/id_rsa && \
+    chmod 644 /home/jenkins/.ssh/id_rsa.pub
+
+# Configure SSH to disable host key checking
+RUN echo "Host *\n\tStrictHostKeyChecking no\n\tUserKnownHostsFile=/dev/null" > /home/jenkins/.ssh/config && \
+    chown jenkins:jenkins /home/jenkins/.ssh/config && \
+    chmod 600 /home/jenkins/.ssh/config
+
+EXPOSE 22
+
+CMD ["/usr/sbin/sshd", "-D"]
