@@ -4,10 +4,38 @@
   become: yes
   
   tasks:
-    - name: Install Git
+    - name: Install required packages
       apt:
-        name: git
+        name:
+          - git
+          - rsync
+          - php-cli
+          - curl
+          - unzip
         state: present
+        update_cache: yes
+
+    - name: Check if Composer is installed
+      stat:
+        path: /usr/local/bin/composer
+      register: composer_bin
+
+    - name: Download Composer installer
+      get_url:
+        url: https://getcomposer.org/installer
+        dest: /tmp/composer-setup.php
+        mode: '0755'
+      when: not composer_bin.stat.exists
+
+    - name: Install Composer
+      shell: php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
+      when: not composer_bin.stat.exists
+
+    - name: Remove Composer installer
+      file:
+        path: /tmp/composer-setup.php
+        state: absent
+      when: not composer_bin.stat.exists
 
     - name: Remove old project directory
       file:
@@ -21,6 +49,11 @@
         version: main
         force: yes
 
+    - name: Install Composer dependencies
+      shell: cd /tmp/phpproject && /usr/local/bin/composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+      args:
+        executable: /bin/bash
+
     - name: Ensure web directory exists
       file:
         path: /var/www/html/phpproject
@@ -29,32 +62,9 @@
         group: www-data
         mode: '0755'
 
-    - name: Remove existing web directory content
-      shell: rm -rf /var/www/html/phpproject/*
-
-    - name: Copy project files to web directory
-      shell: cp -r /tmp/phpproject/* /var/www/html/phpproject/
-
-    - name: Set correct permissions
-      file:
-        path: /var/www/html/phpproject
-        owner: www-data
-        group: www-data
-        recurse: yes
-
-    - name: Kill any running Apache processes
-      shell: pkill apache2 || true
-      ignore_errors: yes
-
-    - name: Start Apache2
-      shell: source /etc/apache2/envvars && /usr/sbin/apache2 -DFOREGROUND &
-      args:
-        executable: /bin/bash
-      async: 10
-      poll: 0
-
-    - name: Wait for Apache to be ready
-      wait_for:
-        port: 80
-        delay: 2
-        timeout: 10
+    - name: Sync project files to web directory
+      synchronize:
+        src: /tmp/phpproject/
+        dest: /var/www/html/phpproject/
+        delete: yes
+        recursive: yes
