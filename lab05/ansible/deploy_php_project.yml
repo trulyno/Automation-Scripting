@@ -1,0 +1,35 @@
+---
+- name: Deploy PHP Project
+  hosts: test_servers
+  become: yes
+
+  tasks:
+  - name: Install Git
+    apt:
+      name: git
+      state: present
+
+  - name: Clone PHP project
+    git:
+      repo: YOUR_REPOSITORY_URL
+      dest: /tmp/phpproject
+      version: main
+      force: yes
+
+  - name: Copy project files to web directory
+    synchronize:
+      src: /tmp/phpproject/
+      dest: /var/www/html/phpproject/
+    delegate_to: "{{ inventory_hostname }}"
+
+  - name: Set correct permissions
+    file:
+      path: /var/www/html/phpproject
+      owner: www-data
+      group: www-data
+      recurse: yes
+
+  - name: Restart Apache
+    systemd:
+      name: apache2
+      state: restarted
