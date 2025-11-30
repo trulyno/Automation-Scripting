@@ -11,7 +11,7 @@
 
   - name: Clone PHP project
     git:
-      repo: YOUR_REPOSITORY_URL
+      repo: https://github.com/trulyno/php-site-with-unit-tests
       dest: /tmp/phpproject
       version: main
       force: yes
