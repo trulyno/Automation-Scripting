@@ -62,9 +62,9 @@
         group: www-data
         mode: '0755'
 
-    - name: Sync project files to web directory
-      synchronize:
-        src: /tmp/phpproject/
-        dest: /var/www/html/phpproject/
-        delete: yes
-        recursive: yes
+    - name: Copy project files to web directory
+      shell: |
+        rsync -av --delete /tmp/phpproject/ /var/www/html/phpproject/
+        chown -R www-data:www-data /var/www/html/phpproject
+      args:
+        executable: /bin/bash
