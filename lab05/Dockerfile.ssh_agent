@@ -1,0 +1,30 @@
+FROM jenkins/ssh-agent:latest-jdk17
+
+# Switch to root to install packages
+USER root
+
+# Install PHP and necessary packages
+RUN apt-get update && apt-get install -y \
+    php-cli \
+    php-xml \
+    php-mbstring \
+    php-curl \
+    php-zip \
+    git \
+    unzip \
+    wget \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+# Create workspace directory
+RUN mkdir -p /home/jenkins/workspace && \
+    chown -R jenkins:jenkins /home/jenkins/workspace
+
+# Switch back to jenkins user
+USER jenkins
+
+# Set working directory
+WORKDIR /home/jenkins
