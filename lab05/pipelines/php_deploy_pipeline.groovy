@@ -9,7 +9,7 @@ pipeline {
                         sh '''
                             ssh -o StrictHostKeyChecking=no jenkins@ansible-agent '
                                 rm -rf /home/jenkins/ansible &&
-                                git clone https://github.com/trulyno/php-site-with-unit-tests /home/jenkins/ansible
+                                git clone https://github.com/trulyno/Automation-Scripting /home/jenkins/ansible
                             '
                         '''
                     }
